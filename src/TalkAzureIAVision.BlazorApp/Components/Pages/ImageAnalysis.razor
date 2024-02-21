@@ -1,0 +1,260 @@
+﻿@page "/image-analysis"
+@inject ILogger<ImageAnalysis> Logger
+@inject ImageAnalysisHelper ImageAnalysisInstance
+
+<PageTitle>Image Analysis</PageTitle>
+
+<h1>Image Analysis</h1>
+
+<form>
+    <div class="mb-3">
+        <label for="inputFile" class="form-label">Image</label>
+        <InputFile OnChange="OnFileChanged" />
+        <div id="emailHelp" class="form-text">Select an image to analyze</div>
+    </div>
+</form>
+
+
+
+
+@if (isLoading)
+{
+    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+    <span role="status">Loading...</span>
+}
+else
+{
+    <div class="row">
+        <div class="col-3">
+            <img class="img-fluid d-block" src="data:image/jpg;base64,@imageBase64" />
+        </div>
+    </div>
+}
+
+
+@if (isAnalyzing)
+{
+    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+    <span role="status">Analyzing...</span>
+}
+
+@if (imageAnalysisResult is not null)
+{ 
+    <div class="row">
+        <div class="col-8">
+
+            @if (imageAnalysisResult.Caption is not null)
+            {
+                <label>Caption</label>
+                <h3>@($"   '{imageAnalysisResult.Caption.Text}', Confidence {imageAnalysisResult.Caption.Confidence:F4}")</h3>
+
+                <hr />
+            }
+
+            @if (imageAnalysisResult.DenseCaptions is not null)
+            {
+                <label>Dense Captions</label>
+                <ul>
+                    @foreach (DenseCaption denseCaption in imageAnalysisResult.DenseCaptions.Values)
+                    {
+                        <li>
+                            <span>@($"   '{denseCaption.Text}', Confidence {denseCaption.Confidence:F4}, Bounding box {denseCaption.BoundingBox}")</span>
+                        </li>
+                    }
+                </ul>
+
+                <hr />
+            }
+
+
+            @if (imageAnalysisResult.Objects is not null)
+            {
+                <label>Objects</label>
+                <ul>
+                    @foreach (DetectedObject detectedObject in imageAnalysisResult.Objects.Values)
+                    {
+                        <li>
+                            <span>@($"   '{detectedObject.Tags.First().Name}', Bounding box {detectedObject.BoundingBox.ToString()}")</span>
+                        </li>
+                    }
+                </ul>
+
+                <hr />
+            }
+
+
+            @if (imageAnalysisResult.Read is not null)            
+            {
+                <label>Read (OCR)</label>
+                <ul>
+                    @foreach (DetectedTextBlock block in imageAnalysisResult.Read.Blocks)
+                    {
+                        @foreach (DetectedTextLine line in block.Lines)
+                        {
+                            <strong>@($"   Line: '{line.Text}', Bounding Polygon: [{string.Join(" ", line.BoundingPolygon)}]")</strong>
+                            <ul>
+                                @foreach (DetectedTextWord word in line.Words)
+                                {
+                                    <li>
+                                        <span>@($"     Word: '{word.Text}', Confidence {word.Confidence.ToString("#.####")}, Bounding Polygon: [{string.Join(" ", word.BoundingPolygon)}]")</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    }
+                </ul>
+                <hr />
+            }
+
+
+            @if (imageAnalysisResult.Tags is not null)
+            {
+                <label>Tags</label>
+                <ul>
+                    @foreach (DetectedTag tag in imageAnalysisResult.Tags.Values)
+                    {
+                        <li>
+                            <span>@($"   {tag.Name}, Confidence {tag.Confidence:F4}")</span>
+                        </li>
+                    }
+                </ul>
+
+
+                <hr />
+            }
+
+
+            @if (imageAnalysisResult.People is not null)
+            {
+                <label>People</label>
+                <ul>
+                    @foreach (DetectedPerson person in imageAnalysisResult.People.Values)
+                    {
+                        <li>
+                            <span>@($"Person: Bounding box {person.BoundingBox.ToString()}, Confidence {person.Confidence:F4}")</span>
+                        </li>
+                    }
+                </ul>
+
+                <hr />
+            }
+            }
+
+            @if (imageAnalysisResult.SmartCrops is not null)
+            {
+                <label>SmartCrops</label>
+                <ul>
+                    @foreach (CropRegion cropRegion in imageAnalysisResult.SmartCrops.Values)
+                    {
+                        <li>
+                            <span>@($"Aspect ratio: {cropRegion.AspectRatio}, Bounding box: {cropRegion.BoundingBox}")</span>
+                        </li>
+                    }
+                </ul>
+                <hr />
+            }
+           
+            <label>Metadata</label>
+            <ul>
+                <li>Model: @imageAnalysisResult.ModelVersion</li>
+                <li>Image width: @imageAnalysisResult.Metadata.Width</li>
+                <li>Image height: @imageAnalysisResult.Metadata.Height</li>
+            </ul>
+        </div>
+    </div>
+}
+
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-error" role="alert">
+        <p>
+           @errorMessage
+        </p>
+    </div>
+}
+
+
+@* 
+<div class="alert alert-info" role="alert">
+    <h4 class="alert-heading">Links</h4>
+    <p>
+        <ul>
+            <li>
+                <a href="https://learn.microsoft.com/en-us/azure/ai-services/computer-vision/overview-image-analysis">
+                    What is Image Analysis?
+                </a>
+            </li>
+            <li>
+                <a href="https://learn.microsoft.com/en-us/aspnet/core/blazor/file-uploads?view=aspnetcore-8.0">
+                    ASP.NET Core Blazor file uploads
+                </a>
+            </li>
+        </ul>
+    </p>
+</div> *@
+
+@code{
+
+    private List<IBrowserFile> imagesFiles = new();
+
+    private long maxFileSize = 1024 * 1024 * 50;
+    private int maxAllowedFiles = 3;
+
+    private bool isLoading;
+    private bool isAnalyzing;
+    private string imageBase64;
+
+    ImageAnalysisResult imageAnalysisResult;
+
+    private string errorMessage = string.Empty;
+
+    private async Task OnFileChanged(InputFileChangeEventArgs e)
+    {
+        isLoading = true;
+        imagesFiles.Clear();
+
+        //TODO: Permit multiple files
+
+        foreach (var file in e.GetMultipleFiles(maxAllowedFiles))
+        {
+            try
+            {
+                var ms = new MemoryStream();
+                await file.OpenReadStream(maxFileSize).CopyToAsync(ms);
+                ms.Position = 0;
+
+                imageBase64 = Convert.ToBase64String(ms.ToArray());
+                ms.Position = 0;
+                isLoading = false;
+
+
+                ms.Position = 0; 
+                var imageData = BinaryData.FromStream(ms);
+
+                isAnalyzing = true;
+
+                imageAnalysisResult = ImageAnalysisInstance.AnalyzeBuffer(imageData);
+
+                isAnalyzing = false;
+                
+            }
+            catch (Exception ex)
+            {
+                errorMessage = $"{ex.Message}";
+
+                Logger.LogError("File: {Filename} Error: {Error}",
+                    file.Name, ex.Message);
+            }
+
+            isAnalyzing = false;
+        }
+
+        isLoading = false;
+        isLoading = false;
+
+        StateHasChanged();
+
+    }
+
+}  

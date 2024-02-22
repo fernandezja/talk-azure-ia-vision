@@ -3,7 +3,7 @@ Talk Azure IA Vision
 
 ### Slides
  - [Online | Slideshare](https://www.slideshare.net/slideshows/utilizando-ia-en-software-azure-ia-vision-f380/266430442)
- - [PDF | Talk-Azure-IA-Vision-2024.pdf](https://raw.githubusercontent.com/fernandezja/https://github.com/fernandezja/talk-azure-ia-vision/master/Talk-Azure-IA-Vision-2024.pdf)
+ - [PDF | Talk-Azure-IA-Vision-2024.pdf](Talk-Azure-IA-Vision-2024.pdf)
 
 
 
